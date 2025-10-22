@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Building my own git and github",
   "main": "index.js",
+  "bin": {
+    "bit": "cli/index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

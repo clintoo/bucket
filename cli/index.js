@@ -95,6 +95,48 @@ program
   .description("Fast-forward merge to the given commit if possible")
   .action((commit) => load("merge")(commit));
 
+// remote
+program
+  .command("remote [subcommand] [args...]")
+  .description("Manage remote repositories (add, list, get-url)")
+  .action((subcommand, args) => load("remote").remote(subcommand, ...args));
+
+// login
+program
+  .command("login [token]")
+  .description("Authenticate with remote repository")
+  .action((token) => load("login").login(token));
+
+// whoami
+program
+  .command("whoami")
+  .description("Show current authentication status")
+  .action(() => load("login").whoami());
+
+// push-remote
+program
+  .command("push-remote [remote] [branch]")
+  .description("Push commits to a remote repository")
+  .action(async (remote, branch) => {
+    await load("push-remote").pushRemote(remote, branch);
+  });
+
+// pull-remote
+program
+  .command("pull-remote [remote] [branch]")
+  .description("Pull commits from a remote repository")
+  .action(async (remote, branch) => {
+    await load("pull-remote").pullRemote(remote, branch);
+  });
+
+// clone-remote
+program
+  .command("clone-remote <url> <repoId> [dir]")
+  .description("Clone a repository from a remote")
+  .action(async (url, repoId, dir) => {
+    await load("clone-remote").cloneRemote(url, repoId, dir);
+  });
+
 // show help when no command provided
 if (process.argv.length <= 2) {
   program.help({ error: false });

@@ -180,13 +180,13 @@ function writeIndex(data) {
 }
 
 /**
- * Read commit object by hash from .bit/objects/<hash>
+ * Read commit object by hash from .bit/objects/xx/yyyyy
  */
 function readCommit(hash) {
   if (!hash) {
     throw new Error("hash required");
   }
-  const objFile = repoPath("objects", hash);
+  const objFile = getObjectPath(hash);
   if (!fs.existsSync(objFile)) {
     throw new Error("commit not found: " + hash);
   }
@@ -199,7 +199,7 @@ function readCommit(hash) {
 }
 
 /**
- * Write commit object into .bit/objects/<sha1> and return the hash.
+ * Write commit object into .bit/objects/xx/yyyyy and return the hash.
  */
 function writeCommit(commit) {
   if (!commit || typeof commit !== "object") {
@@ -209,15 +209,40 @@ function writeCommit(commit) {
   const raw = JSON.stringify(commit);
   const hash = crypto.createHash("sha1").update(raw, "utf8").digest("hex");
 
-  const objectsDir = repoPath("objects");
-  if (!fs.existsSync(objectsDir)) {
-    fs.mkdirSync(objectsDir, { recursive: true });
+  const objFile = getObjectPath(hash);
+  const objDir = path.dirname(objFile);
+  if (!fs.existsSync(objDir)) {
+    fs.mkdirSync(objDir, { recursive: true });
   }
 
-  const objFile = path.join(objectsDir, hash);
   fs.writeFileSync(objFile, raw, "utf8");
 
   return hash;
+}
+
+/**
+ * Get the file path for an object by hash
+ * Uses 2-char fanout: objects/xx/yyyyyy...
+ */
+function getObjectPath(hash) {
+  if (!hash || hash.length < 3) {
+    throw new Error("Invalid hash");
+  }
+  return repoPath("objects", hash.slice(0, 2), hash.slice(2));
+}
+
+/**
+ * Write an arbitrary object (blob or commit) to the object store
+ * @param {string} hash - The object hash
+ * @param {Buffer} data - The object data
+ */
+function writeObject(hash, data) {
+  const objPath = getObjectPath(hash);
+  const objDir = path.dirname(objPath);
+  if (!fs.existsSync(objDir)) {
+    fs.mkdirSync(objDir, { recursive: true });
+  }
+  fs.writeFileSync(objPath, data);
 }
 
 module.exports = {
@@ -229,4 +254,6 @@ module.exports = {
   writeIndex,
   readCommit,
   writeCommit,
+  getObjectPath,
+  writeObject,
 };

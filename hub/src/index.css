@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* GitHub Light Theme */
+    --background: 0 0% 100%;
+    --foreground: 215 12% 17%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 12% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 12% 17%;
+
+    --primary: 212 92% 43%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 16% 96%;
+    --secondary-foreground: 215 12% 17%;
+
+    --muted: 210 16% 96%;
+    --muted-foreground: 215 9% 47%;
+
+    --accent: 210 16% 96%;
+    --accent-foreground: 215 12% 17%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 18% 88%;
+    --input: 214 18% 88%;
+    --ring: 212 92% 43%;
+
+    --radius: 0.5rem;
+
+    /* GitHub Code Font */
+    --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  }
+
+  .dark {
+    /* GitHub Dark Theme */
+    --background: 220 13% 9%;
+    --foreground: 213 31% 92%;
+
+    --card: 217 19% 12%;
+    --card-foreground: 213 31% 92%;
+
+    --popover: 217 19% 12%;
+    --popover-foreground: 213 31% 92%;
+
+    --primary: 212 92% 66%;
+    --primary-foreground: 220 13% 9%;
+
+    --secondary: 215 16% 17%;
+    --secondary-foreground: 213 31% 92%;
+
+    --muted: 215 16% 17%;
+    --muted-foreground: 217 10% 65%;
+
+    --accent: 215 16% 17%;
+    --accent-foreground: 213 31% 92%;
+
+    --destructive: 0 63% 51%;
+    --destructive-foreground: 213 31% 92%;
+
+    --border: 215 16% 21%;
+    --input: 215 16% 21%;
+    --ring: 212 92% 66%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
