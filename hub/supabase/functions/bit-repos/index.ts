@@ -42,8 +42,13 @@ serve(async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter((p) => p);
 
-    // POST /repos - Create a new repo
-    if (req.method === "POST" && pathParts.length === 0) {
+    // Accept both / and /bit-repos as base path
+    const isBasePath =
+      pathParts.length === 0 ||
+      (pathParts.length === 1 && pathParts[0] === "bit-repos");
+
+    // POST / - Create a new repo
+    if (req.method === "POST" && isBasePath) {
       const body = await req.json();
       const { name, visibility = "private", description = "" } = body;
 
@@ -97,8 +102,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // GET /repos - List repos accessible to the user
-    if (req.method === "GET" && pathParts.length === 0) {
+    // GET / - List repos accessible to the user
+    if (req.method === "GET" && isBasePath) {
       const { data: repos, error } = await supabaseClient
         .from("repos")
         .select("*")
@@ -116,9 +121,13 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // GET /repos/:id - Get a specific repo
-    if (req.method === "GET" && pathParts.length === 1) {
-      const repoId = pathParts[0];
+    // GET /:id - Get a specific repo
+    if (
+      req.method === "GET" &&
+      ((pathParts.length === 1 && pathParts[0] !== "bit-repos") ||
+        (pathParts.length === 2 && pathParts[0] === "bit-repos"))
+    ) {
+      const repoId = pathParts.length === 2 ? pathParts[1] : pathParts[0];
 
       const { data: repo, error } = await supabaseClient
         .from("repos")
@@ -138,10 +147,16 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Not found" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Not found",
+        debug: { method: req.method, pathname: url.pathname, pathParts },
+      }),
+      {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     return new Response(
       JSON.stringify({
