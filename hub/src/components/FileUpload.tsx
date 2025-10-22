@@ -1,11 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
-import { Upload, X, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useState, useRef, useCallback } from "react";
+import { Upload, X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface FileUploadProps {
   repoId: string;
@@ -16,7 +16,7 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [filePath, setFilePath] = useState('');
+  const [filePath, setFilePath] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -47,7 +47,7 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
 
   const uploadFiles = async () => {
     if (selectedFiles.length === 0) {
-      toast.error('Please select files to upload');
+      toast.error("Please select files to upload");
       return;
     }
 
@@ -56,18 +56,19 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
     try {
       for (const file of selectedFiles) {
         const finalPath = filePath ? `${filePath}/${file.name}` : file.name;
-        const isTextFile = file.type.startsWith('text/') || 
-                          file.name.endsWith('.md') || 
-                          file.name.endsWith('.json') ||
-                          file.name.endsWith('.js') ||
-                          file.name.endsWith('.ts') ||
-                          file.name.endsWith('.tsx') ||
-                          file.name.endsWith('.jsx');
+        const isTextFile =
+          file.type.startsWith("text/") ||
+          file.name.endsWith(".md") ||
+          file.name.endsWith(".json") ||
+          file.name.endsWith(".js") ||
+          file.name.endsWith(".ts") ||
+          file.name.endsWith(".tsx") ||
+          file.name.endsWith(".jsx");
 
         if (isTextFile && file.size < 1024 * 1024) {
           // Store text files directly in the database
           const content = await file.text();
-          const { error } = await supabase.from('files').insert({
+          const { error } = await supabase.from("files").insert({
             repo_id: repoId,
             path: finalPath,
             content,
@@ -79,12 +80,12 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
           // Store binary files in storage
           const storagePath = `${repoId}/${finalPath}`;
           const { error: uploadError } = await supabase.storage
-            .from('repo-files')
+            .from("repo-files")
             .upload(storagePath, file);
 
           if (uploadError) throw uploadError;
 
-          const { error: dbError } = await supabase.from('files').insert({
+          const { error: dbError } = await supabase.from("files").insert({
             repo_id: repoId,
             path: finalPath,
             storage_path: storagePath,
@@ -97,10 +98,10 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
 
       toast.success(`${selectedFiles.length} file(s) uploaded successfully`);
       setSelectedFiles([]);
-      setFilePath('');
+      setFilePath("");
       onUploadComplete();
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -110,7 +111,7 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
     <Card>
       <CardContent className="p-6">
         <h3 className="font-semibold mb-4">Upload Files</h3>
-        
+
         <div className="space-y-4">
           {/* <div>
             <Label htmlFor="file-path">Path (optional)</Label>
@@ -127,7 +128,7 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
 
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragActive ? 'border-primary bg-accent' : 'border-border'
+              dragActive ? "border-primary bg-accent" : "border-border"
             }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -136,7 +137,8 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
           >
             <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
             <p className="mb-2 text-sm text-muted-foreground">
-              Drag and drop files here, or click 'Browse' to upload from your device
+              Drag and drop files here, or click 'Browse' to upload from your
+              device
             </p>
             <input
               ref={fileInputRef}
@@ -168,7 +170,9 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
                     variant="ghost"
                     size="sm"
                     onClick={() =>
-                      setSelectedFiles(selectedFiles.filter((_, i) => i !== index))
+                      setSelectedFiles(
+                        selectedFiles.filter((_, i) => i !== index)
+                      )
                     }
                   >
                     <X className="h-4 w-4" />
@@ -191,7 +195,8 @@ export const FileUpload = ({ repoId, onUploadComplete }: FileUploadProps) => {
             ) : (
               <>
                 <Upload className="mr-2 h-4 w-4" />
-                Commit changes {selectedFiles.length > 0 && `(${selectedFiles.length})`}
+                Commit changes{" "}
+                {selectedFiles.length > 0 && `(${selectedFiles.length})`}
               </>
             )}
           </Button>

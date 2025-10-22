@@ -1,21 +1,37 @@
-import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Upload, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Navbar } from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Upload, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import type { User } from "@supabase/supabase-js";
+
+interface Profile {
+  id: string;
+  username: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  email?: string | null;
+  [key: string]: unknown;
+}
 
 const Profile = () => {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [username, setUsername] = useState('');
-  const [bio, setBio] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -25,16 +41,18 @@ const Profile = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        navigate('/auth');
+        navigate("/auth");
       } else {
         setUser(session.user);
         fetchProfile(session.user.id);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        navigate('/auth');
+        navigate("/auth");
       } else {
         setUser(session.user);
         fetchProfile(session.user.id);
@@ -46,15 +64,15 @@ const Profile = () => {
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
       .single();
-    
+
     if (data) {
       setProfile(data);
-      setUsername(data.username || '');
-      setBio(data.bio || '');
+      setUsername(data.username || "");
+      setBio(data.bio || "");
       setAvatarUrl(data.avatar_url || null);
     }
   };
@@ -66,38 +84,38 @@ const Profile = () => {
     setUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}/avatar.${fileExt}`;
 
       // Delete old avatar if exists
       if (avatarUrl) {
-        await supabase.storage.from('avatars').remove([fileName]);
+        await supabase.storage.from("avatars").remove([fileName]);
       }
 
       // Upload new avatar
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from("avatars")
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(fileName);
 
       // Update profile with avatar URL
       const { error: updateError } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
+        .eq("id", user.id);
 
       if (updateError) throw updateError;
 
       setAvatarUrl(publicUrl);
-      toast.success('Avatar updated successfully!');
-    } catch (error: any) {
-      toast.error(error.message);
+      toast.success("Avatar updated successfully!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -108,32 +126,34 @@ const Profile = () => {
     setLoading(true);
 
     const { error } = await supabase
-      .from('profiles')
+      .from("profiles")
       .update({
         username,
         bio,
       })
-      .eq('id', user?.id);
+      .eq("id", user?.id);
 
     setLoading(false);
 
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Profile updated successfully!');
-      navigate('/');
+      toast.success("Profile updated successfully!");
+      navigate("/");
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} />
-      
+
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <Card>
           <CardHeader>
             <CardTitle>Edit Profile</CardTitle>
-            <CardDescription>Update your public profile information</CardDescription>
+            <CardDescription>
+              Update your public profile information
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -171,7 +191,7 @@ const Profile = () => {
                   )}
                 </Button>
               </div>
-              
+
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -181,19 +201,15 @@ const Profile = () => {
                   required
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  value={profile?.email || ''}
-                  disabled
-                />
+                <Input id="email" value={profile?.email || ""} disabled />
                 <p className="text-sm text-muted-foreground mt-1">
                   Email cannot be changed
                 </p>
               </div>
-              
+
               <div>
                 <Label htmlFor="bio">Bio</Label>
                 <Textarea
@@ -204,12 +220,16 @@ const Profile = () => {
                   rows={4}
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save changes'}
+                  {loading ? "Saving..." : "Save changes"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate('/')}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/")}
+                >
                   Cancel
                 </Button>
               </div>

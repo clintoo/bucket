@@ -1,29 +1,38 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Navbar } from "@/components/Navbar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/contexts/ThemeContext";
+import type { User } from "@supabase/supabase-js";
 
 const Settings = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        navigate('/auth');
+        navigate("/auth");
       } else {
         setUser(session.user);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        navigate('/auth');
+        navigate("/auth");
       } else {
         setUser(session.user);
       }
@@ -35,12 +44,14 @@ const Settings = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} />
-      
+
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <Card>
           <CardHeader>
             <CardTitle>Settings</CardTitle>
-            <CardDescription>Manage your account settings and preferences</CardDescription>
+            <CardDescription>
+              Manage your account settings and preferences
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
@@ -52,7 +63,7 @@ const Settings = () => {
               </div>
               <Switch
                 id="dark-mode"
-                checked={theme === 'dark'}
+                checked={theme === "dark"}
                 onCheckedChange={toggleTheme}
               />
             </div>

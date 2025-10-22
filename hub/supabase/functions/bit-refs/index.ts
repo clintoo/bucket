@@ -1,6 +1,6 @@
-// @ts-expect-error
+// @ts-expect-error - Deno import for Edge Function
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-expect-error
+// @ts-expect-error - Deno import for Edge Function
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -16,9 +16,9 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     const supabaseClient = createClient(
-      // @ts-expect-error
+      // @ts-expect-error - Deno global for Edge Function
       (typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : "") ?? "",
-      // @ts-expect-error
+      // @ts-expect-error - Deno global for Edge Function
       (typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : "") ??
         "",
       {

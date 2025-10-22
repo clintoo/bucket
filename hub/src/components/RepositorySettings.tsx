@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,35 +24,45 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Settings, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+} from "@/components/ui/alert-dialog";
+import { Settings, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface Repository {
+  id: string;
+  name: string;
+  description: string | null;
+  [key: string]: unknown;
+}
 
 interface RepositorySettingsProps {
-  repository: any;
+  repository: Repository;
   onUpdate: () => void;
 }
 
-export const RepositorySettings = ({ repository, onUpdate }: RepositorySettingsProps) => {
+export const RepositorySettings = ({
+  repository,
+  onUpdate,
+}: RepositorySettingsProps) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(repository.name);
-  const [description, setDescription] = useState(repository.description || '');
+  const [description, setDescription] = useState(repository.description || "");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleUpdate = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from('repositories')
+      .from("repositories")
       .update({ name, description })
-      .eq('id', repository.id);
+      .eq("id", repository.id);
 
     setLoading(false);
 
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Repository updated successfully');
+      toast.success("Repository updated successfully");
       setOpen(false);
       onUpdate();
     }
@@ -61,17 +71,17 @@ export const RepositorySettings = ({ repository, onUpdate }: RepositorySettingsP
   const handleDelete = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from('repositories')
+      .from("repositories")
       .delete()
-      .eq('id', repository.id);
+      .eq("id", repository.id);
 
     setLoading(false);
 
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Repository deleted successfully');
-      navigate('/');
+      toast.success("Repository deleted successfully");
+      navigate("/");
     }
   };
 
@@ -125,8 +135,8 @@ export const RepositorySettings = ({ repository, onUpdate }: RepositorySettingsP
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your
-                  repository and all associated files.
+                  This action cannot be undone. This will permanently delete
+                  your repository and all associated files.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -143,7 +153,7 @@ export const RepositorySettings = ({ repository, onUpdate }: RepositorySettingsP
               Cancel
             </Button>
             <Button onClick={handleUpdate} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </DialogFooter>

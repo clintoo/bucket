@@ -1,47 +1,61 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { Menu, User, Settings as SettingsIcon, LogOut, Book } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import {
+  Menu,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  LogOut,
+  Book,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
+
+interface Profile {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+  [key: string]: unknown;
+}
 
 interface NavbarProps {
-  user?: any;
+  user?: User;
 }
 
 export const Navbar = ({ user }: NavbarProps) => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (data) {
+      setProfile(data as Profile);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
     }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-    
-    if (data) {
-      setProfile(data);
-    }
-  };
+  }, [user, fetchProfile]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate('/auth');
+    navigate("/auth");
   };
 
   return (
@@ -53,28 +67,28 @@ export const Navbar = ({ user }: NavbarProps) => {
           </Link>
 
           <div className="flex items-center gap-4">
-        {user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback>
-                    {profile?.username?.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {profile?.username?.charAt(0).toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>
-                    <User className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <UserIcon className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
                     <SettingsIcon className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/')}>
+                  <DropdownMenuItem onClick={() => navigate("/")}>
                     <Book className="mr-2 h-4 w-4" />
                     Repositories
                   </DropdownMenuItem>
@@ -86,7 +100,7 @@ export const Navbar = ({ user }: NavbarProps) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button onClick={() => navigate('/auth')}>Sign In</Button>
+              <Button onClick={() => navigate("/auth")}>Sign In</Button>
             )}
           </div>
         </div>
