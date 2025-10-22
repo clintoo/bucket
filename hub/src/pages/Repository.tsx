@@ -74,17 +74,40 @@ const Repository = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchRepository = async () => {
-    const { data } = await supabase
-      .from("repositories")
-      .select("*, profiles(*)")
+  const fetchRepository = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("repos")
+      .select("*")
       .eq("id", id)
       .single();
-    setRepository(data);
-    setLoading(false);
-  };
 
-  const fetchFiles = async () => {
+    if (error) {
+      console.error("Error fetching repository:", error);
+      setRepository(null);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch profile separately if repo found
+    let repoWithProfile: Repository | null = data;
+    if (data && data.owner_id) {
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", data.owner_id)
+        .single();
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        repoWithProfile = { ...data, profiles: null } as Repository;
+      } else {
+        repoWithProfile = { ...data, profiles: profileData } as Repository;
+      }
+    }
+    setRepository(repoWithProfile);
+    setLoading(false);
+  }, [id]);
+
+  const fetchFiles = useCallback(async () => {
     const { data } = await supabase
       .from("files")
       .select("*")
@@ -98,7 +121,7 @@ const Repository = () => {
     if (readmeFile) {
       setReadme(readmeFile.content || "");
     }
-  };
+  }, [id]);
 
   const fetchStarStatus = useCallback(async () => {
     if (!user) return;
@@ -194,7 +217,7 @@ const Repository = () => {
     toast.success("Clone URL copied to clipboard");
   };
 
-  const isOwner = user && repository && user.id === repository.user_id;
+  const isOwner = user && repository && user.id === repository.owner_id;
 
   if (loading) {
     return (

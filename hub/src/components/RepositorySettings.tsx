@@ -53,7 +53,7 @@ export const RepositorySettings = ({
   const handleUpdate = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from("repositories")
+      .from("repos")
       .update({ name, description })
       .eq("id", repository.id);
 
@@ -71,7 +71,7 @@ export const RepositorySettings = ({
   const handleDelete = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from("repositories")
+      .from("repos")
       .delete()
       .eq("id", repository.id);
 

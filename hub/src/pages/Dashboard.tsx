@@ -96,13 +96,27 @@ const Dashboard = () => {
   };
 
   const fetchStarredRepositories = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("stars")
-      .select("*, repositories(*, profiles(username))")
+      .select(
+        `
+        *,
+        repos (
+          *,
+          profiles!repos_owner_id_fkey (
+            username
+          )
+        )
+      `
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    setStarredRepos(data?.map((s) => s.repositories) || []);
+    if (error) {
+      console.error("Error fetching starred repositories:", error);
+    }
+
+    setStarredRepos(data?.map((s) => s.repos) || []);
   };
 
   const handleCreateRepo = async (e: React.FormEvent) => {
