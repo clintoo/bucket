@@ -30,6 +30,53 @@ type FileData = {
   is_binary: boolean;
 };
 
+type FileTreeNode = {
+  name: string;
+  path: string;
+  type: "file" | "folder";
+  children?: FileTreeNode[];
+  fileData?: FileData;
+};
+
+type FolderTreeProps = {
+  nodes: FileTreeNode[];
+  onFileClick: (file: FileData) => void;
+};
+
+const FolderTree: React.FC<FolderTreeProps> = ({ nodes, onFileClick }) => {
+  return (
+    <div>
+      {nodes.map((node) =>
+        node.type === "folder" ? (
+          <Collapsible key={node.path} defaultOpen={false}>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-accent rounded">
+                <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium text-sm">{node.name}</span>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="ml-6">
+              <FolderTree
+                nodes={node.children || []}
+                onFileClick={onFileClick}
+              />
+            </CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <div
+            key={node.path}
+            className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-accent rounded"
+            onClick={() => onFileClick(node.fileData!)}
+          >
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm">{node.name}</span>
+          </div>
+        )
+      )}
+    </div>
+  );
+};
+
 interface Profile {
   username: string | null;
   [key: string]: unknown;
@@ -40,6 +87,7 @@ interface Repository {
   name: string;
   description: string | null;
   branch?: string;
+  owner_id?: string;
   profiles?: Profile;
   [key: string]: unknown;
 }
@@ -51,6 +99,7 @@ const Repository = () => {
   const [repository, setRepository] = useState<Repository | null>(null);
   const [files, setFiles] = useState<FileData[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
+  const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [readme, setReadme] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [starred, setStarred] = useState(false);
@@ -104,13 +153,71 @@ const Repository = () => {
     setLoading(false);
   }, [id]);
 
+  // Helper: Build folder tree from flat file list
+  const buildFileTree = (files: FileData[]): FileTreeNode[] => {
+    // Use objects for folders, arrays for children
+    type FolderObj = { [name: string]: FolderObj | FileData };
+    const root: FolderObj = {};
+    for (const file of files) {
+      const parts = file.path.split("/");
+      let current: FolderObj = root;
+      let fullPath = "";
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        fullPath = fullPath ? fullPath + "/" + part : part;
+        if (i === parts.length - 1) {
+          // File
+          current[part] = file;
+        } else {
+          if (
+            !current[part] ||
+            typeof current[part] !== "object" ||
+            Array.isArray(current[part])
+          ) {
+            current[part] = {};
+          }
+          current = current[part] as FolderObj;
+        }
+      }
+    }
+    // Convert FolderObj to FileTreeNode[] recursively
+    const convert = (obj: FolderObj, parentPath = ""): FileTreeNode[] => {
+      return Object.entries(obj).map(([name, value]) => {
+        const nodePath = parentPath ? parentPath + "/" + name : name;
+        if (
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          !("path" in value)
+        ) {
+          // Folder
+          return {
+            name,
+            path: nodePath,
+            type: "folder",
+            children: convert(value as FolderObj, nodePath),
+          };
+        } else {
+          // File
+          const fileData = value as FileData;
+          return {
+            name,
+            path: nodePath,
+            type: "file",
+            fileData,
+          };
+        }
+      });
+    };
+    return convert(root);
+  };
+
   // Fetch files from latest commit in refs/heads/main
   const fetchFiles = useCallback(async () => {
     // 1. Fetch refs from Edge Function
-    const refsUrl = `${
-      process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      "https://ubesznoqkyldvnxpheir.supabase.co"
-    }/functions/v1/bit-refs/repos/${id}/refs`;
+    const SUPABASE_URL =
+      import.meta.env.VITE_SUPABASE_URL ||
+      "https://ubesznoqkyldvnxpheir.supabase.co";
+    const refsUrl = `${SUPABASE_URL}/functions/v1/bit-refs/repos/${id}/refs`;
     const refsRes = await fetch(refsUrl, {
       headers: { "Content-Type": "application/json" },
     });
@@ -173,6 +280,7 @@ const Repository = () => {
       fileList.push({ path, hash, content, is_binary });
     }
     setFiles(fileList);
+    setFileTree(buildFileTree(fileList));
     // Find README
     const readmeFile = fileList.find(
       (f) => f.path.toLowerCase() === "readme.md"
@@ -362,23 +470,16 @@ const Repository = () => {
               <FolderOpen className="h-4 w-4" />
               Files
             </div>
-
-            {files.length === 0 ? (
+            {fileTree.length === 0 ? (
               <p className="text-muted-foreground text-sm">
                 No files in this repository
               </p>
             ) : (
               <div className="space-y-2">
-                {files.map((file) => (
-                  <div
-                    key={file.hash + file.path}
-                    className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                    onClick={() => setSelectedFile(file)}
-                  >
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{file.path}</span>
-                  </div>
-                ))}
+                <FolderTree
+                  nodes={fileTree}
+                  onFileClick={(file) => setSelectedFile(file)}
+                />
               </div>
             )}
           </CardContent>
