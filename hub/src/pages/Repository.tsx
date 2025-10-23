@@ -218,9 +218,19 @@ const Repository = () => {
       import.meta.env.VITE_SUPABASE_URL ||
       "https://ubesznoqkyldvnxpheir.supabase.co";
     const refsUrl = `${SUPABASE_URL}/functions/v1/bit-refs/repos/${id}/refs`;
-    const refsRes = await fetch(refsUrl, {
-      headers: { "Content-Type": "application/json" },
-    });
+
+    // Get the current session for authentication
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (session?.access_token) {
+      headers["Authorization"] = `Bearer ${session.access_token}`;
+    }
+
+    const refsRes = await fetch(refsUrl, { headers });
     const refsJson = await refsRes.json();
     const mainRef = (refsJson.refs || []).find(
       (r: any) => r.name === "refs/heads/main"
