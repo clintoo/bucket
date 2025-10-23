@@ -51,6 +51,16 @@ function inRepo() {
 }
 
 /**
+ * Return repository root path, or throw if not in a repo
+ */
+function getRepoRoot() {
+  if (!inRepo()) {
+    throw new Error("Not in a bit repository. Run 'bit init' first.");
+  }
+  return process.cwd();
+}
+
+/**
  * Write a tree structure to disk.
  * tree: object where
  *  - string or Buffer values => file contents
@@ -99,5 +109,6 @@ function writeFilesFromTree(tree, targetDir) {
 
 module.exports = {
   inRepo,
+  getRepoRoot,
   writeFilesFromTree,
 };

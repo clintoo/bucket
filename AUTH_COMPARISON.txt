@@ -1,0 +1,214 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                      AUTHENTICATION METHODS COMPARED                         ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ THE ACCESS TOKEN                                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  What it is:   Supabase Auth JWT token
+  Format:       eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI...
+  Contains:     User ID, email, expiration, signature
+  Purpose:      Proves you're authenticated when calling API
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ HOW TO GET IT                                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  Method 1: Settings Page (Easiest!) ⭐
+  ═══════════════════════════════════════
+  
+    1. Hub → Settings
+    2. Scroll to "Developer Settings"
+    3. Click "Copy" button
+    4. Done! ✅
+
+  Method 2: Browser Console (Alternative)
+  ════════════════════════════════════════
+  
+    1. F12 → Console
+    2. Paste: const { data: { session } } = await supabase.auth.getSession();
+              console.log(session.access_token);
+    3. Copy output
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ HOW TO USE IT                                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────────────────────────────────────────────────────────┐
+  │ METHOD 1: Environment Variable                                             │
+  ├────────────────────────────────────────────────────────────────────────────┤
+  │                                                                            │
+  │   export BIT_TOKEN="your-access-token"                                     │
+  │   bit whoami                                                               │
+  │   bit push-remote                                                          │
+  │                                                                            │
+  │   Pros:                      Cons:                                         │
+  │   ✅ Quick setup              ❌ Temporary (this terminal only)            │
+  │   ✅ No files modified        ❌ Lost on terminal close                    │
+  │   ✅ Good for testing         ❌ Must export each time                     │
+  │   ✅ Per-terminal tokens                                                   │
+  │                                                                            │
+  │   Best for: Testing, temporary access, trying things out                  │
+  │                                                                            │
+  └────────────────────────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────────────────────────────────────────────────────────┐
+  │ METHOD 2: Login Command                                                    │
+  ├────────────────────────────────────────────────────────────────────────────┤
+  │                                                                            │
+  │   bit login "your-access-token"                                            │
+  │   bit whoami                                                               │
+  │   bit push-remote                                                          │
+  │                                                                            │
+  │   Pros:                      Cons:                                         │
+  │   ✅ Permanent               ❌ Stored in plain text                       │
+  │   ✅ Works everywhere        ❌ Need to re-login if expires                │
+  │   ✅ One-time setup          ❌ Single token for all projects              │
+  │   ✅ Convenient                                                            │
+  │                                                                            │
+  │   Token saved at: ~/.bit/token                                             │
+  │                                                                            │
+  │   Best for: Daily development, regular use, convenience                   │
+  │                                                                            │
+  └────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TOKEN PRIORITY                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  CLI checks in this order:
+
+    1. BIT_TOKEN environment variable  ← Highest priority
+    2. ~/.bit/token file               ← Fallback
+
+  This means you can:
+  • Use login command for daily work
+  • Override with env var when needed
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ COMPARISON CHART                                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────┬─────────────────────┬─────────────────────────────────┐
+  │ Feature          │ Environment Var     │ Login Command                   │
+  ├──────────────────┼─────────────────────┼─────────────────────────────────┤
+  │ Setup            │ export BIT_TOKEN=   │ bit login "token"               │
+  │ Persistence      │ Current terminal    │ All terminals                   │
+  │ Storage          │ Memory only         │ ~/.bit/token file               │
+  │ Security         │ More secure         │ Less secure (plain text file)   │
+  │ Convenience      │ Manual each time    │ Automatic                       │
+  │ Use case         │ Testing             │ Daily work                      │
+  │ Multiple tokens  │ Easy (per-terminal) │ Need to re-login                │
+  │ Token expires    │ Just export new one │ Run login again                 │
+  └──────────────────┴─────────────────────┴─────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE WORKFLOWS                                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  Scenario 1: Quick Test
+  ══════════════════════
+    # Get token from Settings
+    export BIT_TOKEN="eyJhbG..."
+    bit status
+    bit push-remote
+    # Token gone when terminal closes ✅
+
+  Scenario 2: Daily Development
+  ══════════════════════════════
+    # One-time setup
+    bit login "eyJhbG..."
+    
+    # Now works anytime
+    cd ~/project1
+    bit push-remote
+    
+    cd ~/project2
+    bit push-remote
+    # Works forever! ✅
+
+  Scenario 3: Multiple Accounts
+  ══════════════════════════════
+    # Account 1 saved
+    bit login "token-1"
+    
+    # Override for account 2
+    export BIT_TOKEN="token-2"
+    bit push-remote  # Uses token-2
+    
+    # Unset to go back to account 1
+    unset BIT_TOKEN
+    bit push-remote  # Uses token-1
+
+  Scenario 4: CI/CD Pipeline
+  ═══════════════════════════
+    # In your CI config
+    env:
+      BIT_TOKEN: ${{ secrets.BIT_TOKEN }}
+    
+    # In build script
+    bit push-remote
+    # Uses env var from CI secrets ✅
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SECURITY NOTES                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  ⚠️  Don't commit tokens to git
+  ⚠️  Don't share tokens publicly
+  ⚠️  Tokens expire (usually 1 hour)
+  ⚠️  Get new token when expired
+  ⚠️  Environment variable is more secure than saved file
+  ✅  Both methods are fine for personal development
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ DECISION GUIDE                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  Choose Environment Variable if:
+    • You're just testing
+    • You want maximum security
+    • You need different tokens per terminal
+    • You're okay exporting each time
+
+  Choose Login Command if:
+    • You use bit daily
+    • You want convenience
+    • You're on a personal machine
+    • You don't want to remember to export
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ RECOMMENDED APPROACH                                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  1. Start with ENVIRONMENT VARIABLE to try things out
+     export BIT_TOKEN="token"
+  
+  2. Switch to LOGIN COMMAND once you're comfortable
+     bit login "token"
+  
+  3. Use ENVIRONMENT VARIABLE to override when needed
+     export BIT_TOKEN="different-token"
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║  Bottom Line: Both methods use the same access token from Hub Settings.     ║
+║               Pick whichever is more convenient for you!                     ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+For complete details: cat AUTHENTICATION.md

@@ -1,32 +1,41 @@
 const fs = require("fs");
 const path = require("path");
-const { inRepo } = require("../lib/files");
+const { getRepoRoot } = require("../lib/files");
 const { getRemote, listRemoteRefs, getObject } = require("../lib/remote");
-const { getHead, readCommit, writeObject, getObjectPath } = require("../lib/repo");
+const {
+  getHead,
+  readCommit,
+  writeObject,
+  getObjectPath,
+} = require("../lib/repo");
 
 /**
  * Pull commits from a remote repository
  */
 async function pullRemote(remoteName = "origin", branchName = null) {
   try {
-    const repoRoot = inRepo();
+    const repoRoot = getRepoRoot();
     const remote = getRemote(remoteName);
     if (!remote) {
-      console.error(`Remote '${remoteName}' not found. Add it with 'bit remote add'.`);
+      console.error(
+        `Remote '${remoteName}' not found. Add it with 'bit remote add'.`
+      );
       return;
     }
 
     // Determine branch to pull
     const headPath = path.join(repoRoot, ".bit", "HEAD");
     const headContent = fs.readFileSync(headPath, "utf8").trim();
-    
+
     let localBranch;
     let localHash = null;
-    
+
     if (headContent.startsWith("ref:")) {
       localBranch = headContent.slice(5).trim();
       if (branchName && localBranch !== branchName) {
-        console.error(`HEAD is at ${localBranch}, but you specified ${branchName}`);
+        console.error(
+          `HEAD is at ${localBranch}, but you specified ${branchName}`
+        );
         return;
       }
       const refPath = path.join(repoRoot, ".bit", localBranch);
@@ -41,9 +50,9 @@ async function pullRemote(remoteName = "origin", branchName = null) {
     console.log(`Pulling ${localBranch} from ${remoteName}...`);
 
     // Get remote refs
-    const remoteRefs = await listRemoteRefs(remote);
-    const remoteRef = remoteRefs.find(r => r.name === localBranch);
-    
+    const { refs: remoteRefs } = await listRemoteRefs(remote);
+    const remoteRef = (remoteRefs || []).find((r) => r.name === localBranch);
+
     if (!remoteRef || !remoteRef.hash) {
       console.log("Remote branch does not exist yet.");
       return;
@@ -59,7 +68,7 @@ async function pullRemote(remoteName = "origin", branchName = null) {
     // Collect all objects to fetch
     const objectsToFetch = [];
     const visited = new Set();
-    
+
     async function collectObjects(hash) {
       if (!hash || visited.has(hash)) return;
       visited.add(hash);
@@ -71,8 +80,17 @@ async function pullRemote(remoteName = "origin", branchName = null) {
       objectsToFetch.push(hash);
 
       // Download and read commit to recurse
-      const data = await getObject(remote, hash);
-      
+      let data;
+      try {
+        data = await getObject(remote, hash);
+      } catch (e) {
+        throw new Error(
+          `Failed to get object ${hash}: ${
+            e instanceof Error ? e.message : String(e)
+          }`
+        );
+      }
+
       try {
         const commitObj = JSON.parse(data.toString("utf8"));
         if (commitObj.parent) {
@@ -99,11 +117,19 @@ async function pullRemote(remoteName = "origin", branchName = null) {
       console.log("No new objects to fetch");
     } else {
       console.log(`Downloading ${objectsToFetch.length} object(s)...`);
-      
+
       // Download all objects
       for (const hash of objectsToFetch) {
-        const data = await getObject(remote, hash);
-        writeObject(hash, data);
+        try {
+          const data = await getObject(remote, hash);
+          writeObject(hash, data);
+        } catch (e) {
+          throw new Error(
+            `Failed to get object ${hash}: ${
+              e instanceof Error ? e.message : String(e)
+            }`
+          );
+        }
       }
     }
 
@@ -116,7 +142,9 @@ async function pullRemote(remoteName = "origin", branchName = null) {
     console.log("Pull complete!");
 
     // TODO: Optionally checkout the new tree
-    console.log("Note: Working directory not updated. Use 'bit restore' to update files.");
+    console.log(
+      "Note: Working directory not updated. Use 'bit restore' to update files."
+    );
   } catch (error) {
     console.error("Pull failed:", error.message);
   }

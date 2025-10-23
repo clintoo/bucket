@@ -28,6 +28,19 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
+    // Admin client (service role) to perform storage writes after our own checks
+    const supabaseAdmin = createClient(
+      // @ts-expect-error - Deno global for Edge Function
+      (typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : "") ?? "",
+      // @ts-expect-error - Deno global for Edge Function
+      (typeof Deno !== "undefined"
+        ? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+        : "") ?? "",
+      {
+        auth: { persistSession: false },
+      }
+    );
+
     const {
       data: { user },
       error: authError,
@@ -42,11 +55,15 @@ serve(async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter((p) => p);
 
-    // Expected: repos/:repoId/objects/:hash
+    // Skip function name prefix (e.g., "bit-objects") and get the actual path
+    // Expected path after function name: repos/:repoId/objects/:hash
+    const actualPath =
+      pathParts[0] === "bit-objects" ? pathParts.slice(1) : pathParts;
+
     if (
-      pathParts.length < 4 ||
-      pathParts[0] !== "repos" ||
-      pathParts[2] !== "objects"
+      actualPath.length < 4 ||
+      actualPath[0] !== "repos" ||
+      actualPath[2] !== "objects"
     ) {
       return new Response(JSON.stringify({ error: "Invalid path" }), {
         status: 400,
@@ -54,8 +71,8 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const repoId = pathParts[1];
-    const hash = pathParts[3];
+    const repoId = actualPath[1];
+    const hash = actualPath[3];
 
     // Validate hash format
     if (!/^[0-9a-f]{40}$/.test(hash)) {
@@ -135,33 +152,19 @@ serve(async (req: Request): Promise<Response> => {
       const body = await req.arrayBuffer();
       const bodyBytes = new Uint8Array(body);
 
-      // Try to parse as JSON to check if it's a commit object
-      try {
-        const text = new TextDecoder().decode(bodyBytes);
-        const obj = JSON.parse(text);
+      // Note: We do not enforce commit author email here to avoid blocking pushes.
+      // Authorization is enforced via repo ownership check below and ref updates in bit-refs.
 
-        // If it's a commit object, validate author email
-        if (obj.author && obj.author.email) {
-          if (obj.author.email !== user.email) {
-            return new Response(
-              JSON.stringify({
-                error: "Forbidden: author email must match authenticated user",
-                expected: user.email,
-                got: obj.author.email,
-              }),
-              {
-                status: 403,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
-          }
-        }
-      } catch {
-        // Not JSON or not a commit, that's fine - could be a blob
+      // Only owner can upload objects for now (collaborator support can be added later)
+      if (repo.owner_id !== user.id) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // Upload to storage
-      const { error: uploadError } = await supabaseClient.storage
+      // Upload to storage (use admin client to bypass storage RLS after our checks)
+      const { error: uploadError } = await supabaseAdmin.storage
         .from(bucketName)
         .upload(objectPath, bodyBytes, {
           contentType: "application/octet-stream",

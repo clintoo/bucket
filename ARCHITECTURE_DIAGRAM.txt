@@ -1,0 +1,231 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│                     HOW BIT PUSH WORKS (Like Git)                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                                  WORKFLOW
+                                  ════════
+
+┌──────────────┐
+│              │
+│ Local Files  │  Your project directory
+│              │
+└──────┬───────┘
+       │
+       │  bit add <files>
+       │
+       ▼
+┌──────────────┐
+│              │
+│    Index     │  Staging area (.bit/index)
+│  (Staging)   │
+│              │
+└──────┬───────┘
+       │
+       │  bit commit -m "message"
+       │
+       ▼
+┌──────────────┐
+│              │
+│   Commits    │  Local commit history (.bit/objects)
+│  (Local DB)  │
+│              │
+└──────┬───────┘
+       │
+       │  bit push-remote
+       │
+       ▼
+┌──────────────┐
+│              │
+│    Remote    │  Supabase Storage + Database
+│  Repository  │
+│              │
+└──────────────┘
+
+
+                              PUSH PROCESS
+                              ════════════
+
+  Local Machine                           Remote Server
+  ═════════════                           ═════════════
+
+┌─────────────┐                          ┌─────────────┐
+│             │                          │             │
+│   .bit/     │                          │  Supabase   │
+│             │                          │             │
+│  • objects/ │                          │  • Storage  │
+│  • refs/    │                          │  • Database │
+│  • HEAD     │                          │             │
+│  • index    │                          │             │
+│             │                          │             │
+└──────┬──────┘                          └──────▲──────┘
+       │                                        │
+       │ 1. Read local commit                  │
+       │    and history                        │
+       │                                        │
+       ├────────────────────────────────────────┤
+       │                                        │
+       │ 2. GET /repos/:id/refs                │
+       │    (fetch remote refs)                │
+       │                                        │
+       ├────────────────────────────────────────┤
+       │                                        │
+       │ 3. Calculate diff                     │
+       │    (find missing objects)             │
+       │                                        │
+       ├────────────────────────────────────────┤
+       │                                        │
+       │ 4. For each missing object:           │
+       │    PUT /repos/:id/objects/:hash       │
+       │    (upload commits & blobs)           │
+       │                                        │
+       ├────────────────────────────────────────┤
+       │                                        │
+       │ 5. PUT /repos/:id/refs/:name          │
+       │    (update branch with CAS)           │
+       │    {oldHash, newHash}                 │
+       │                                        │
+       └────────────────────────────────────────┘
+
+
+                            OBJECT STORAGE
+                            ══════════════
+
+    Local (.bit/objects)           Remote (Supabase Storage)
+    ════════════════════           ═══════════════════════
+
+    objects/                       bit-objects/
+    ├── ab/                        └── repos/
+    │   ├── cdef123... (commit)        └── {repo-id}/
+    │   └── 8765fed... (blob)              └── objects/
+    ├── cd/                                    ├── ab/
+    │   └── ef012345... (blob)                 │   ├── cdef123...
+    └── ...                                    │   └── 8765fed...
+                                              ├── cd/
+         SHA-1 Hash = Object ID               │   └── ef012345...
+                                              └── ...
+
+
+                              COMMIT GRAPH
+                              ════════════
+
+    refs/heads/main
+           │
+           ▼
+    ┌──────────────┐
+    │   abc123     │  Latest commit
+    │   "Fix bug"  │
+    └──────┬───────┘
+           │ parent
+           ▼
+    ┌──────────────┐
+    │   def456     │  Previous commit
+    │   "Add feat" │
+    └──────┬───────┘
+           │ parent
+           ▼
+    ┌──────────────┐
+    │   789ghi     │  Initial commit
+    │   "Initial"  │
+    └──────────────┘
+
+    Each commit points to:
+    • Parent commit (forms history)
+    • Tree (map of files → blob hashes)
+    • Author, message, timestamp
+
+
+                           AUTHENTICATION
+                           ══════════════
+
+    You                    Supabase               Edge Function
+    ═══                    ════════                ═══════════
+
+    Login to Hub     →     Generate JWT     →     Verify token
+                           with user info
+
+    Store token      ←     Return token
+    (~/.bit/token)
+
+    Push request     →     Validate JWT     →     Check ownership
+    + token                                        Authorize action
+
+
+                         COMPARE-AND-SWAP (CAS)
+                         ══════════════════════
+
+    Prevents race conditions when multiple people push:
+
+    Client A                Database                Client B
+    ════════                ════════                ════════
+
+    Read: main @ abc123
+                           main = abc123
+                                                   Read: main @ abc123
+
+    Update: abc123 → def456
+                           Check: abc123 = abc123 ✓
+                           Update: main = def456
+                                                   Update: abc123 → 789ghi
+                                                   Check: abc123 ≠ def456 ✗
+                                                   Error: CAS_FAILED
+                                                   Solution: Pull then push
+
+
+                             FILE LIFECYCLE
+                             ══════════════
+
+    Working Directory      Index (Staging)        Repository
+    ═════════════════      ═══════════════        ══════════
+
+    Create file.txt
+           │
+           │ bit add file.txt
+           │
+           ▼
+    Hash content     →     Store in index
+    Store as blob          {path: hash}
+           │
+           │ bit commit -m "message"
+           │
+           ▼
+    Create commit    →     Store commit object
+    with tree              {tree, parent, msg}
+           │
+           │ bit push-remote
+           │
+           ▼
+    Upload objects   →     Store in Supabase
+    Update ref             {repo-id}/objects/{hash}
+
+
+                            COMMANDS FLOW
+                            ═════════════
+
+    bit init              Create .bit/ structure
+      │
+      ▼
+    bit add <files>       Hash files → Store as blobs → Update index
+      │
+      ▼
+    bit commit -m "msg"   Create commit object → Hash → Store
+      │
+      ▼
+    bit push-remote       Find diff → Upload objects → Update ref
+      │
+      ▼
+    bit pull-remote       Fetch refs → Download objects → Update local
+      │
+      ▼
+    bit clone-remote      Create repo → Fetch all → Checkout
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+For more details:
+  • PUSH_GUIDE.md - Step-by-step instructions
+  • QUICK_REFERENCE.txt - Command reference
+  • README.md - Full architecture documentation
+
+═══════════════════════════════════════════════════════════════════════════

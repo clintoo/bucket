@@ -5,6 +5,7 @@ A full-featured implementation of Git version control and GitHub-style repositor
 ## 📋 Table of Contents
 
 - [Overview](#overview)
+- [🚀 Quick Start - Push to Remote](#-quick-start---push-to-remote)
 - [Project Architecture](#project-architecture)
 - [CLI Tool - "bit"](#cli-tool---bit)
   - [Core Git Operations](#core-git-operations)
@@ -27,6 +28,39 @@ A full-featured implementation of Git version control and GitHub-style repositor
 
 ---
 
+## 🚀 Quick Start - Push to Remote
+
+**Want to push code to your remote repository right away?**
+
+```bash
+# 1. Login with your JWT token
+bit login "your-jwt-token"
+
+# 2. Initialize and add remote
+bit init
+bit remote add origin "https://your-project.supabase.co/functions/v1/bit-objects" "repo-uuid"
+
+# 3. Push your code
+bit add .
+bit commit -m "Initial commit"
+bit push-remote
+```
+
+**Complete guides available:**
+
+- 📖 **[PUSH_GUIDE.md](./PUSH_GUIDE.md)** - Detailed step-by-step guide
+- 📋 **[QUICK_REFERENCE.txt](./QUICK_REFERENCE.txt)** - Command cheat sheet
+- 🎨 **[ARCHITECTURE_DIAGRAM.txt](./ARCHITECTURE_DIAGRAM.txt)** - Visual flow diagrams
+- ✅ **[PUSH_SETUP_COMPLETE.md](./PUSH_SETUP_COMPLETE.md)** - Setup verification
+
+**Test your setup:**
+
+```bash
+./test-push-remote.sh "https://your-project.supabase.co/functions/v1/bit-objects" "repo-uuid" "jwt-token"
+```
+
+---
+
 ## Overview
 
 **Bucket** is a comprehensive reimplementation of Git and GitHub from the ground up, consisting of two main components:
@@ -35,6 +69,7 @@ A full-featured implementation of Git version control and GitHub-style repositor
 2. **Web Hub (`hub/`)** - A web-based repository hosting platform similar to GitHub
 
 This project demonstrates a deep understanding of:
+
 - Content-addressable storage using SHA-1 hashing
 - Directed acyclic graph (DAG) structures for commit history
 - Tree and blob object models
@@ -110,16 +145,20 @@ The `bit` CLI is a functional Git clone implemented in Node.js that provides all
 ### Core Git Operations
 
 #### Repository Management
+
 ```bash
 bit init [--path <path>] [--branch <name>]
 ```
+
 Initialize a new repository with a `.bit` directory containing:
+
 - `objects/` - Content-addressable object store (commits and blobs)
 - `refs/heads/` - Branch references
 - `HEAD` - Current branch pointer
 - `index` - Staging area (JSON file mapping paths to blob hashes)
 
 #### Staging & Committing
+
 ```bash
 bit add <path>              # Stage files (supports directories, globs)
 bit rm <path>               # Remove files from working tree and index
@@ -130,12 +169,14 @@ bit commit --allow-empty    # Create commit even with no changes
 ```
 
 The staging process:
+
 1. Reads file content as a Buffer (binary-safe)
 2. Computes SHA-1 hash of content
 3. Stores blob in `objects/xx/yyyyyy...` (2-char fanout directory)
 4. Updates index JSON with `{ "path/to/file": "hash" }`
 
 #### History & Inspection
+
 ```bash
 bit log                     # Show commit history (reverse chronological)
 bit diff [path]            # Show unstaged changes
@@ -143,6 +184,7 @@ bit restore <path>         # Restore file from index
 ```
 
 #### Local Collaboration
+
 ```bash
 bit clone <src> <dest>     # Copy repository to new location
 bit push <dest>            # Push objects and refs to another local repo
@@ -155,6 +197,7 @@ bit merge <commit>         # Fast-forward merge to specified commit
 The CLI supports pushing/pulling to a remote server (the Hub):
 
 #### Authentication
+
 ```bash
 bit login <token>          # Save JWT token for authentication
 bit whoami                 # Display current authentication status
@@ -163,6 +206,7 @@ bit whoami                 # Display current authentication status
 The token is stored in `~/.bit/token` and can also be set via `BIT_TOKEN` environment variable.
 
 #### Remote Management
+
 ```bash
 bit remote add <name> <url> <repoId>  # Register a remote
 bit remote list                        # List configured remotes
@@ -170,6 +214,7 @@ bit remote get-url <name>              # Get remote URL
 ```
 
 Configuration is stored in `.bit/config` as JSON:
+
 ```json
 {
   "remotes": {
@@ -182,6 +227,7 @@ Configuration is stored in `.bit/config` as JSON:
 ```
 
 #### Synchronization
+
 ```bash
 bit push-remote [remote] [branch]     # Push commits to remote server
 bit pull-remote [remote] [branch]     # Pull commits from remote server
@@ -189,6 +235,7 @@ bit clone-remote <url> <repoId> [dir] # Clone from remote server
 ```
 
 **Push Process:**
+
 1. Reads local HEAD to determine current commit
 2. Fetches remote refs to find what's already pushed
 3. Walks commit history backward, collecting all commits and blobs not on remote
@@ -196,6 +243,7 @@ bit clone-remote <url> <repoId> [dir] # Clone from remote server
 5. Updates remote ref using Compare-and-Swap (CAS) for conflict prevention
 
 **Pull Process:**
+
 1. Fetches remote refs to find latest commit
 2. Downloads all missing objects from remote
 3. Writes objects to local `.bit/objects/`
@@ -204,20 +252,24 @@ bit clone-remote <url> <repoId> [dir] # Clone from remote server
 ### Installation & Usage
 
 **Prerequisites:**
+
 - Node.js 18+ (supports ES modules and async/await)
 - npm or similar package manager
 
 **Install Dependencies:**
+
 ```bash
 npm install
 ```
 
 **Link CLI Globally (Optional):**
+
 ```bash
 npm link
 ```
 
 Now you can use `bit` command anywhere:
+
 ```bash
 bit init
 echo "console.log('Hello')" > app.js
@@ -227,6 +279,7 @@ bit log
 ```
 
 **Without Linking:**
+
 ```bash
 node cli/index.js init
 node cli/index.js add .
@@ -242,11 +295,13 @@ The Hub is a modern web application that provides a GitHub-like interface for ma
 ### Features
 
 #### 🔐 User Management
+
 - **Authentication**: Email/password signup and login via Supabase Auth
 - **User Profiles**: Customizable username, bio, and avatar
 - **Profile Pages**: Public profile pages showing user's repositories
 
 #### 📦 Repository Management
+
 - **Create Repositories**: Initialize new repositories with name and description
 - **Repository Dashboard**: View all repositories with metadata
 - **Repository Settings**: Configure name, description, default branch, visibility
@@ -255,11 +310,13 @@ The Hub is a modern web application that provides a GitHub-like interface for ma
 - **README Rendering**: Automatic markdown rendering for README.md files
 
 #### ⭐ Social Features
+
 - **Star Repositories**: Bookmark interesting repositories
 - **Starred Feed**: View all starred repositories in one place
 - **Public Discovery**: Browse public repositories from other users
 
 #### 🎨 User Experience
+
 - **Dark/Light Mode**: Toggle between themes with persistent preference
 - **Responsive Design**: Mobile-friendly interface
 - **Real-time Updates**: Instant feedback using React Query for caching
@@ -268,12 +325,14 @@ The Hub is a modern web application that provides a GitHub-like interface for ma
 ### Technology Stack
 
 **Frontend Framework & Tools:**
+
 - **React 18** - Modern UI library with concurrent features
 - **TypeScript** - Type-safe development
 - **Vite** - Lightning-fast build tool and dev server (HMR, ESM)
 - **React Router v6** - Client-side routing with data loading
 
 **UI Components & Styling:**
+
 - **Tailwind CSS** - Utility-first CSS framework
 - **shadcn/ui** - High-quality component library built on Radix UI
 - **Radix UI** - Unstyled, accessible component primitives
@@ -281,11 +340,13 @@ The Hub is a modern web application that provides a GitHub-like interface for ma
 - **next-themes** - Theme management (dark/light mode)
 
 **State Management & Data Fetching:**
+
 - **TanStack Query (React Query)** - Async state management, caching, and synchronization
 - **React Hook Form** - Performant form handling with validation
 - **Zod** - TypeScript-first schema validation
 
 **Backend & Database:**
+
 - **Supabase** - Backend-as-a-Service (BaaS) platform
   - PostgreSQL database with Row Level Security (RLS)
   - Authentication with JWT tokens
@@ -294,6 +355,7 @@ The Hub is a modern web application that provides a GitHub-like interface for ma
   - Real-time subscriptions
 
 **Supabase Edge Functions (API Endpoints):**
+
 - `bit-objects` - Handle GET/PUT/HEAD operations for Git objects
 - `bit-refs` - Manage branch references with CAS
 - `bit-repos` - Repository CRUD operations
@@ -302,16 +364,19 @@ The Hub is a modern web application that provides a GitHub-like interface for ma
 ### Getting Started
 
 **Prerequisites:**
+
 - Node.js 18+
 - Supabase account (free tier available)
 
 **1. Clone Repository:**
+
 ```bash
 git clone https://github.com/clintoo/bucket.git
 cd bucket/hub
 ```
 
 **2. Install Dependencies:**
+
 ```bash
 npm install
 ```
@@ -319,12 +384,14 @@ npm install
 **3. Set Up Supabase:**
 
 Create a new Supabase project at https://supabase.com and note:
+
 - Project URL
 - Anon/Public API Key
 
 **4. Configure Environment:**
 
 Create `hub/.env` file:
+
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
@@ -333,6 +400,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 **5. Run Database Migrations:**
 
 The migrations in `hub/supabase/migrations/` set up:
+
 - `profiles` table - User profiles
 - `repositories` table - Repository metadata
 - `files` table - File storage
@@ -344,6 +412,7 @@ The migrations in `hub/supabase/migrations/` set up:
 Apply these via Supabase Dashboard or CLI.
 
 **6. Start Development Server:**
+
 ```bash
 npm run dev
 ```
@@ -351,6 +420,7 @@ npm run dev
 Visit `http://localhost:5173`
 
 **Available Scripts:**
+
 - `npm run dev` - Start dev server (Vite)
 - `npm run build` - Production build
 - `npm run preview` - Preview production build
@@ -365,6 +435,7 @@ Visit `http://localhost:5173`
 The system uses **content-addressable storage** where every object is identified by its SHA-1 hash (40 hex characters).
 
 **Storage Layout:**
+
 ```
 .bit/objects/
 ├── ab/
@@ -380,6 +451,7 @@ The 2-character fanout directory reduces filesystem strain and improves lookup p
 **Object Types:**
 
 1. **Blob Objects** - File contents (text or binary)
+
    - Stored as raw bytes
    - Hash computed from content directly
    - Binary-safe using Node.js Buffers
@@ -396,7 +468,7 @@ Each commit is a JSON object with this structure:
 {
   "message": "Add authentication system",
   "timestamp": "2025-10-22T18:12:00.000Z",
-  "parent": "abc123def456...",  // null for first commit
+  "parent": "abc123def456...", // null for first commit
   "tree": {
     "src/auth.js": "blob-hash-1",
     "src/utils.js": "blob-hash-2",
@@ -416,6 +488,7 @@ Each commit is a JSON object with this structure:
 The commit is serialized to JSON, hashed, and stored just like a blob. The hash becomes the commit ID.
 
 **Commit Graph:**
+
 ```
 main: abc123 -> def456 -> 789ghi
                ↑
@@ -431,6 +504,7 @@ Communication between CLI and Hub uses HTTP REST API with JWT authentication.
 **API Endpoints:**
 
 1. **Object Storage API** (`bit-objects` function)
+
    - `HEAD /repos/:repoId/objects/:hash` - Check if object exists
    - `GET /repos/:repoId/objects/:hash` - Download object
    - `PUT /repos/:repoId/objects/:hash` - Upload object
@@ -440,6 +514,7 @@ Communication between CLI and Hub uses HTTP REST API with JWT authentication.
    - `PUT /repos/:repoId/refs/:name` - Update ref with CAS
 
 **Push Algorithm:**
+
 ```
 1. Authenticate with JWT token
 2. Get remote refs to determine what's already pushed
@@ -456,6 +531,7 @@ Communication between CLI and Hub uses HTTP REST API with JWT authentication.
 ```
 
 **Pull Algorithm:**
+
 ```
 1. Authenticate with JWT token
 2. Get remote refs to find target commit
@@ -470,6 +546,7 @@ Communication between CLI and Hub uses HTTP REST API with JWT authentication.
 ### Authentication & Authorization
 
 **JWT-Based Authentication:**
+
 1. User signs up/logs in via Supabase Auth
 2. Receives JWT token with claims:
    ```json
@@ -485,6 +562,7 @@ Communication between CLI and Hub uses HTTP REST API with JWT authentication.
 **Authorization Rules (Row Level Security):**
 
 Database policies enforce:
+
 - Users can only create/modify their own repositories
 - Commit author email must match authenticated user
 - Public repositories are readable by anyone
@@ -492,9 +570,13 @@ Database policies enforce:
 - Stars can be created/deleted by authenticated users
 
 **Edge Function Validation:**
+
 ```typescript
 // Extract user from token
-const { data: { user }, error } = await supabase.auth.getUser();
+const {
+  data: { user },
+  error,
+} = await supabase.auth.getUser();
 
 // Verify repo ownership for mutations
 if (repo.owner_id !== user.id) {
@@ -514,7 +596,9 @@ if (commit.author.email !== user.email) {
 The Hub uses PostgreSQL via Supabase with these main tables:
 
 ### `profiles`
+
 Stores user profile information.
+
 ```sql
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id),
@@ -527,7 +611,9 @@ CREATE TABLE profiles (
 ```
 
 ### `repositories`
+
 Repository metadata for the web UI.
+
 ```sql
 CREATE TABLE repositories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -543,7 +629,9 @@ CREATE TABLE repositories (
 ```
 
 ### `files`
+
 File storage for repository contents (used by web UI).
+
 ```sql
 CREATE TABLE files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -558,7 +646,9 @@ CREATE TABLE files (
 ```
 
 ### `stars`
+
 Many-to-many relationship for starred repositories.
+
 ```sql
 CREATE TABLE stars (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -570,7 +660,9 @@ CREATE TABLE stars (
 ```
 
 ### `repos`
+
 Backend repository metadata for CLI push/pull operations.
+
 ```sql
 CREATE TABLE repos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -582,7 +674,9 @@ CREATE TABLE repos (
 ```
 
 ### `refs`
+
 Branch references for CLI operations.
+
 ```sql
 CREATE TABLE refs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -598,6 +692,7 @@ CREATE TABLE refs (
 ### Storage Buckets
 
 **`bit-objects`** - Stores Git objects (commits and blobs)
+
 - Path structure: `repos/:repoId/objects/:prefix/:hash`
 - Example: `repos/abc-123/objects/ab/cdef0123456789...`
 
@@ -614,35 +709,39 @@ The Hub exposes serverless Edge Functions (deployed on Deno) that implement a Gi
 **Operations:**
 
 1. **Check Object Existence**
+
    ```
    HEAD /repos/:repoId/objects/:hash
    Authorization: Bearer <token>
-   
+
    Response: 200 OK (exists) or 404 Not Found
    ```
 
 2. **Download Object**
+
    ```
    GET /repos/:repoId/objects/:hash
    Authorization: Bearer <token>
-   
+
    Response: 200 OK
    Content-Type: application/octet-stream
    Body: <object-data>
    ```
 
 3. **Upload Object**
+
    ```
    PUT /repos/:repoId/objects/:hash
    Authorization: Bearer <token>
    Content-Type: application/octet-stream
    Body: <object-data>
-   
+
    Response: 200 OK
    Body: {"ok": true}
    ```
 
    Validation:
+
    - Verifies hash format (40 hex chars)
    - Checks repository ownership
    - Validates commit author email matches authenticated user
@@ -655,10 +754,11 @@ The Hub exposes serverless Edge Functions (deployed on Deno) that implement a Gi
 **Operations:**
 
 1. **List References**
+
    ```
    GET /repos/:repoId/refs
    Authorization: Bearer <token>
-   
+
    Response: 200 OK
    Body: [
      {"name": "refs/heads/main", "hash": "abc123..."},
@@ -667,6 +767,7 @@ The Hub exposes serverless Edge Functions (deployed on Deno) that implement a Gi
    ```
 
 2. **Update Reference (with CAS)**
+
    ```
    PUT /repos/:repoId/refs/:refName
    Authorization: Bearer <token>
@@ -674,19 +775,20 @@ The Hub exposes serverless Edge Functions (deployed on Deno) that implement a Gi
      "oldHash": "abc123...",  // null for new refs
      "newHash": "def456..."
    }
-   
+
    Response: 200 OK
    Body: {"ok": true}
-   
+
    Error: 409 Conflict (CAS failed - someone else updated ref)
    ```
 
    Compare-and-Swap (CAS) ensures atomic updates:
+
    ```sql
-   UPDATE refs 
+   UPDATE refs
    SET hash = :newHash, updated_at = NOW()
-   WHERE repo_id = :repoId 
-     AND name = :refName 
+   WHERE repo_id = :repoId
+     AND name = :refName
      AND hash = :oldHash;
    ```
 
@@ -697,6 +799,7 @@ The Hub exposes serverless Edge Functions (deployed on Deno) that implement a Gi
 ### Running the Full Stack
 
 **Terminal 1 - Hub (Web UI):**
+
 ```bash
 cd hub
 npm install
@@ -705,6 +808,7 @@ npm run dev
 ```
 
 **Terminal 2 - Test CLI:**
+
 ```bash
 # Create a test repository
 mkdir /tmp/test-repo
@@ -738,6 +842,7 @@ export BIT_TOKEN="your-token"
 ```
 
 This script:
+
 1. Creates a new test repository
 2. Commits files
 3. Pushes to remote
@@ -747,12 +852,14 @@ This script:
 ### Debugging
 
 **CLI Debugging:**
+
 - Check `.bit/` directory structure
 - Inspect `.bit/index` (staged files JSON)
 - View `.bit/objects/` contents
 - Examine commit objects: `cat .bit/objects/ab/cdef...`
 
 **Hub Debugging:**
+
 - Use browser DevTools Network tab to inspect API calls
 - Check Supabase Dashboard > Database > Table Editor
 - View Edge Function logs in Supabase Dashboard > Edge Functions
@@ -765,6 +872,7 @@ This script:
 This project was built to deeply understand:
 
 ### Version Control Internals
+
 - ✅ **Content-Addressable Storage** - Why Git uses SHA-1 hashing and how it enables deduplication
 - ✅ **Object Model** - The relationship between blobs, trees, and commits
 - ✅ **DAG Structure** - How commit graphs enable branching and merging
@@ -772,12 +880,14 @@ This project was built to deeply understand:
 - ✅ **References** - How branches and tags are just pointers to commits
 
 ### Distributed Systems
+
 - ✅ **Remote Protocols** - Designing efficient sync protocols with minimal data transfer
 - ✅ **Object Transfer** - Incremental push/pull by comparing object graphs
 - ✅ **Compare-and-Swap** - Preventing race conditions in concurrent updates
 - ✅ **Conflict Resolution** - Detecting diverged histories and handling fast-forward merges
 
 ### Full-Stack Web Development
+
 - ✅ **Modern React Patterns** - Hooks, Context API, compound components
 - ✅ **Type Safety** - TypeScript for catching errors at compile time
 - ✅ **State Management** - React Query for server state, local state with hooks
@@ -788,6 +898,7 @@ This project was built to deeply understand:
 - ✅ **File Storage** - Handling binary uploads with cloud storage
 
 ### Software Engineering Practices
+
 - ✅ **CLI Design** - Building intuitive command-line interfaces with Commander.js
 - ✅ **Error Handling** - Graceful degradation and helpful error messages
 - ✅ **Code Organization** - Modular architecture with clear separation of concerns
@@ -807,6 +918,7 @@ This project is open source and available for educational purposes. Feel free to
 ## Acknowledgments
 
 Built with inspiration from:
+
 - [Git Internals](https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain) - Understanding Git's architecture
 - [Gitlet](http://gitlet.maryrosecook.com/) - A Git implementation in JavaScript
 - [Building Git](https://shop.jcoglan.com/building-git/) - Comprehensive guide to implementing Git

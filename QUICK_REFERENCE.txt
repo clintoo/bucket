@@ -1,0 +1,178 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     BIT CLI - QUICK REFERENCE CARD                           ║
+║                  Push Code to Remote Repository (Like Git)                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 1. FIRST TIME SETUP                                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  # Get your JWT token from the Hub (browser DevTools or console)
+  
+  # Login with your token
+  bit login YOUR_JWT_TOKEN
+  
+  # Or set as environment variable
+  export BIT_TOKEN="YOUR_JWT_TOKEN"
+  
+  # Verify authentication
+  bit whoami
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 2. INITIALIZE YOUR PROJECT                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  # Navigate to your project
+  cd ~/my-project
+  
+  # Initialize bit repository
+  bit init
+  
+  # Add remote (get repo ID from Hub)
+  bit remote add origin \
+    https://YOUR_PROJECT.supabase.co/functions/v1/bit-objects \
+    YOUR_REPO_ID
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 3. BASIC WORKFLOW (Just like Git!)                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  # Check status
+  bit status
+  
+  # Stage files
+  bit add .                    # Stage all files
+  bit add file.js              # Stage specific file
+  bit add src/                 # Stage directory
+  
+  # Commit changes
+  bit commit -m "Your message"
+  
+  # View history
+  bit log
+  
+  # Push to remote
+  bit push-remote
+  # Or specify remote and branch
+  bit push-remote origin refs/heads/main
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 4. COMMON COMMANDS                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────┬──────────────────────────────────────────────────┐
+  │ Command             │ Description                                      │
+  ├─────────────────────┼──────────────────────────────────────────────────┤
+  │ bit init            │ Initialize repository                            │
+  │ bit add <path>      │ Stage files                                      │
+  │ bit status          │ Show repository status                           │
+  │ bit commit -m "msg" │ Create commit                                    │
+  │ bit log             │ View commit history                              │
+  │ bit diff [path]     │ Show changes                                     │
+  │ bit rm <path>       │ Remove file                                      │
+  │ bit mv <src> <dst>  │ Move/rename file                                 │
+  │ bit restore <path>  │ Restore file from index                          │
+  └─────────────────────┴──────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 5. REMOTE COMMANDS                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────┬───────────────────────────────────────┐
+  │ Command                      │ Description                           │
+  ├──────────────────────────────┼───────────────────────────────────────┤
+  │ bit login <token>            │ Authenticate with Hub                 │
+  │ bit whoami                   │ Check authentication status           │
+  │ bit remote add <name> <url>  │ Add remote repository                 │
+  │   <repoId>                   │                                       │
+  │ bit remote list              │ List remotes                          │
+  │ bit remote -v                │ List remotes with details             │
+  │ bit push-remote              │ Push to remote (default: origin)      │
+  │ bit push-remote <remote>     │ Push to specific remote               │
+  │   <branch>                   │                                       │
+  │ bit pull-remote              │ Pull from remote                      │
+  │ bit clone-remote <url>       │ Clone from remote                     │
+  │   <repoId> [dir]             │                                       │
+  └──────────────────────────────┴───────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 6. FULL WORKFLOW EXAMPLE                                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  # Setup
+  mkdir my-app && cd my-app
+  bit init
+  bit login "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  bit remote add origin \
+    https://xyz.supabase.co/functions/v1/bit-objects \
+    550e8400-e29b-41d4-a716-446655440000
+  
+  # Create files
+  echo "# My App" > README.md
+  echo "console.log('Hello')" > app.js
+  
+  # Commit and push
+  bit add .
+  bit status
+  bit commit -m "Initial commit"
+  bit log
+  bit push-remote
+  
+  # Make changes
+  echo "console.log('Updated')" > app.js
+  bit add app.js
+  bit commit -m "Update app"
+  bit push-remote
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 7. TROUBLESHOOTING                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  Problem: "Not authenticated"
+  Solution: bit login YOUR_TOKEN or export BIT_TOKEN="YOUR_TOKEN"
+  
+  Problem: "Repo not found"
+  Solution: Check repo ID is correct and you're the owner
+  
+  Problem: "CAS_FAILED"
+  Solution: Pull first: bit pull-remote origin refs/heads/main
+  
+  Problem: "Forbidden"
+  Solution: Check authentication and repo ownership
+  
+  Problem: Token expired
+  Solution: Get new token from Hub and run bit login NEW_TOKEN
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 8. TESTING YOUR SETUP                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  # Run the automated test script
+  ./test-push-remote.sh \
+    "https://YOUR_PROJECT.supabase.co/functions/v1/bit-objects" \
+    "YOUR_REPO_ID" \
+    "YOUR_JWT_TOKEN"
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 9. TIPS & BEST PRACTICES                                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  ✓ Always check status before committing: bit status
+  ✓ Write meaningful commit messages
+  ✓ Commit regularly, push often
+  ✓ Use bit log to verify commits before pushing
+  ✓ Keep your JWT token secure (don't commit it!)
+  ✓ Verify in Hub after pushing to ensure files uploaded correctly
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 10. WHERE TO GET INFORMATION                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  JWT Token:    Hub → DevTools → Console → Get session token
+  Repo ID:      Hub → Repository page → URL or Settings
+  Supabase URL: Hub → Project Settings → API URL + /functions/v1/bit-objects
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ For detailed guide, see: PUSH_GUIDE.md                                      ║
+║ For testing: ./test-push-remote.sh <url> <repo-id> <token>                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝

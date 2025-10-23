@@ -23,15 +23,12 @@ import {
 } from "@/components/ui/collapsible";
 import type { User } from "@supabase/supabase-js";
 
-interface FileData {
-  id: string;
+type FileData = {
   path: string;
+  hash: string;
   content: string | null;
-  storage_path: string | null;
   is_binary: boolean;
-  repo_id: string;
-  created_at: string;
-}
+};
 
 interface Profile {
   username: string | null;
@@ -107,20 +104,80 @@ const Repository = () => {
     setLoading(false);
   }, [id]);
 
+  // Fetch files from latest commit in refs/heads/main
   const fetchFiles = useCallback(async () => {
-    const { data } = await supabase
-      .from("files")
-      .select("*")
-      .eq("repo_id", id)
-      .order("path");
-
-    setFiles((data as FileData[]) || []);
-
-    // Find and set README
-    const readmeFile = data?.find((f) => f.path.toLowerCase() === "readme.md");
-    if (readmeFile) {
-      setReadme(readmeFile.content || "");
+    // 1. Fetch refs from Edge Function
+    const refsUrl = `${
+      process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      "https://ubesznoqkyldvnxpheir.supabase.co"
+    }/functions/v1/bit-refs/repos/${id}/refs`;
+    const refsRes = await fetch(refsUrl, {
+      headers: { "Content-Type": "application/json" },
+    });
+    const refsJson = await refsRes.json();
+    const mainRef = (refsJson.refs || []).find(
+      (r: any) => r.name === "refs/heads/main"
+    );
+    const commitHash = mainRef?.hash;
+    if (!commitHash) {
+      setFiles([]);
+      setReadme("");
+      return;
     }
+
+    // 2. Download commit object from storage
+    const commitPath = `repos/${id}/objects/${commitHash.slice(
+      0,
+      2
+    )}/${commitHash.slice(2)}`;
+    const { data: commitBlob } = await supabase.storage
+      .from("bit-objects")
+      .download(commitPath);
+    if (!commitBlob) {
+      setFiles([]);
+      setReadme("");
+      return;
+    }
+    const commitText = await commitBlob.text();
+    let commitObj;
+    try {
+      commitObj = JSON.parse(commitText);
+    } catch {
+      setFiles([]);
+      setReadme("");
+      return;
+    }
+
+    // 3. Parse tree: { [path]: blobHash }
+    const tree = commitObj.tree || {};
+    const fileEntries = Object.entries(tree);
+    const fileList: FileData[] = [];
+    for (const [path, hashRaw] of fileEntries) {
+      const hash = typeof hashRaw === "string" ? hashRaw : "";
+      if (hash.length !== 40) continue;
+      const objectPath = `repos/${id}/objects/${hash.slice(0, 2)}/${hash.slice(
+        2
+      )}`;
+      const { data: blob } = await (supabase.storage as any)
+        .from("bit-objects")
+        .download(objectPath);
+      let content = null;
+      let is_binary = false;
+      if (blob) {
+        try {
+          content = await blob.text();
+        } catch {
+          is_binary = true;
+        }
+      }
+      fileList.push({ path, hash, content, is_binary });
+    }
+    setFiles(fileList);
+    // Find README
+    const readmeFile = fileList.find(
+      (f) => f.path.toLowerCase() === "readme.md"
+    );
+    setReadme(readmeFile?.content || "");
   }, [id]);
 
   const fetchStarStatus = useCallback(async () => {
@@ -189,27 +246,7 @@ const Repository = () => {
     }
   };
 
-  const handleDownloadFile = async (file: FileData) => {
-    if (file.storage_path) {
-      const { data, error } = await supabase.storage
-        .from("repo-files")
-        .download(file.storage_path);
-
-      if (error) {
-        toast.error("Failed to download file");
-        return;
-      }
-
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.path.split("/").pop() || "download";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-  };
+  // Download logic for CLI-pushed files is not implemented (binary only indicator)
 
   const handleCopyClone = () => {
     const cloneUrl = `${window.location.origin}/repo/${id}.git`;
@@ -334,7 +371,7 @@ const Repository = () => {
               <div className="space-y-2">
                 {files.map((file) => (
                   <div
-                    key={file.id}
+                    key={file.hash + file.path}
                     className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
                     onClick={() => setSelectedFile(file)}
                   >
@@ -352,16 +389,7 @@ const Repository = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-semibold">{selectedFile.path}</span>
-                {selectedFile.is_binary && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownloadFile(selectedFile)}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                )}
+                {/* Download button removed for CLI-pushed files */}
               </div>
               {selectedFile.is_binary ? (
                 <p className="text-muted-foreground text-sm">Binary file</p>

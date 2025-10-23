@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { inRepo } = require("./files");
+const { getRepoRoot } = require("./files");
 const { objToStr } = require("./config");
 
 function getAuthToken() {
@@ -24,7 +24,7 @@ function setAuthToken(token) {
 }
 
 function getConfigPath() {
-  const repoRoot = inRepo();
+  const repoRoot = getRepoRoot();
   return path.join(repoRoot, ".bit", "config");
 }
 
@@ -43,7 +43,11 @@ function readConfig() {
 
 function writeConfig(config) {
   const configPath = getConfigPath();
-  fs.writeFileSync(configPath, objToStr(config), "utf8");
+  const dir = path.dirname(configPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
 }
 
 function setRemote(name, url, repoId) {
@@ -65,12 +69,19 @@ async function listRemoteRefs(remote) {
   if (!token) {
     throw new Error("Not authenticated. Run 'bit login' first.");
   }
-  const response = await fetch(`${remote.url}/repos/${remote.repoId}/refs`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+
+  // Extract base URL (remove /bit-objects if present)
+  let baseUrl = remote.url.replace(/\/bit-objects$/, "");
+
+  const response = await fetch(
+    `${baseUrl}/bit-refs/repos/${remote.repoId}/refs`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
   if (!response.ok) {
     const error = await response
       .json()
@@ -87,8 +98,12 @@ async function headObject(remote, hash) {
   if (!token) {
     throw new Error("Not authenticated. Run 'bit login' first.");
   }
+
+  // Extract base URL (remove /bit-objects if present)
+  let baseUrl = remote.url.replace(/\/bit-objects$/, "");
+
   const response = await fetch(
-    `${remote.url}/repos/${remote.repoId}/objects/${hash}`,
+    `${baseUrl}/bit-objects/repos/${remote.repoId}/objects/${hash}`,
     {
       method: "HEAD",
       headers: {
@@ -104,8 +119,12 @@ async function getObject(remote, hash) {
   if (!token) {
     throw new Error("Not authenticated. Run 'bit login' first.");
   }
+
+  // Extract base URL (remove /bit-objects if present)
+  let baseUrl = remote.url.replace(/\/bit-objects$/, "");
+
   const response = await fetch(
-    `${remote.url}/repos/${remote.repoId}/objects/${hash}`,
+    `${baseUrl}/bit-objects/repos/${remote.repoId}/objects/${hash}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -128,8 +147,12 @@ async function putObject(remote, hash, data) {
   if (!token) {
     throw new Error("Not authenticated. Run 'bit login' first.");
   }
+
+  // Extract base URL (remove /bit-objects if present)
+  let baseUrl = remote.url.replace(/\/bit-objects$/, "");
+
   const response = await fetch(
-    `${remote.url}/repos/${remote.repoId}/objects/${hash}`,
+    `${baseUrl}/bit-objects/repos/${remote.repoId}/objects/${hash}`,
     {
       method: "PUT",
       headers: {
@@ -154,8 +177,14 @@ async function updateRemoteRef(remote, refName, oldHash, newHash) {
   if (!token) {
     throw new Error("Not authenticated. Run 'bit login' first.");
   }
+
+  // Extract base URL (remove /bit-objects if present)
+  let baseUrl = remote.url.replace(/\/bit-objects$/, "");
+
   const response = await fetch(
-    `${remote.url}/repos/${remote.repoId}/refs/${encodeURIComponent(refName)}`,
+    `${baseUrl}/bit-refs/repos/${remote.repoId}/refs/${encodeURIComponent(
+      refName
+    )}`,
     {
       method: "PUT",
       headers: {

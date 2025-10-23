@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { inRepo } = require("../lib/files");
+const { getRepoRoot } = require("../lib/files");
 const {
   getRemote,
   listRemoteRefs,
@@ -15,7 +15,7 @@ const { getHead, readCommit, getObjectPath } = require("../lib/repo");
  */
 async function pushRemote(remoteName = "origin", branchName = null) {
   try {
-    const repoRoot = inRepo();
+    const repoRoot = getRepoRoot();
     const remote = getRemote(remoteName);
     if (!remote) {
       console.error(
@@ -53,8 +53,8 @@ async function pushRemote(remoteName = "origin", branchName = null) {
     console.log(`Pushing ${localBranch} to ${remoteName}...`);
 
     // Get remote refs
-    const remoteRefs = await listRemoteRefs(remote);
-    const remoteRef = remoteRefs.find((r) => r.name === localBranch);
+    const { refs: remoteRefs } = await listRemoteRefs(remote);
+    const remoteRef = (remoteRefs || []).find((r) => r.name === localBranch);
     const remoteHash = remoteRef?.hash || null;
 
     if (localHash === remoteHash) {
@@ -110,6 +110,13 @@ async function pushRemote(remoteName = "origin", branchName = null) {
         const data = fs.readFileSync(objPath);
         await putObject(remote, hash, data);
       }
+    }
+
+    // Ensure the new commit is visible remotely to avoid race with object storage
+    for (let i = 0; i < 5; i++) {
+      const ok = await headObject(remote, localHash);
+      if (ok) break;
+      await new Promise((r) => setTimeout(r, 150));
     }
 
     // Update remote ref with CAS

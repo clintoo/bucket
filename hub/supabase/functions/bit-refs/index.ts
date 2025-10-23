@@ -28,6 +28,19 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
+    // Admin client to perform storage checks with stronger consistency / bypass RLS
+    const supabaseAdmin = createClient(
+      // @ts-expect-error - Deno global for Edge Function
+      (typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : "") ?? "",
+      // @ts-expect-error - Deno global for Edge Function
+      (typeof Deno !== "undefined"
+        ? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+        : "") ?? "",
+      {
+        auth: { persistSession: false },
+      }
+    );
+
     const {
       data: { user },
       error: authError,
@@ -42,15 +55,19 @@ serve(async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter((p) => p);
 
-    // Expected: repos/:repoId/refs or repos/:repoId/refs/:refName
-    if (pathParts.length < 2 || pathParts[0] !== "repos") {
+    // Skip function name prefix (e.g., "bit-refs") and get the actual path
+    // Expected path after function name: repos/:repoId/refs or repos/:repoId/refs/:refName
+    const actualPath =
+      pathParts[0] === "bit-refs" ? pathParts.slice(1) : pathParts;
+
+    if (actualPath.length < 2 || actualPath[0] !== "repos") {
       return new Response(JSON.stringify({ error: "Invalid path" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const repoId = pathParts[1];
+    const repoId = actualPath[1];
 
     // Verify repo exists and user has access
     const { data: repo, error: repoError } = await supabaseClient
@@ -69,8 +86,8 @@ serve(async (req: Request): Promise<Response> => {
     // GET /repos/:repoId/refs - List all refs
     if (
       req.method === "GET" &&
-      pathParts.length === 3 &&
-      pathParts[2] === "refs"
+      actualPath.length === 3 &&
+      actualPath[2] === "refs"
     ) {
       const { data: refs, error } = await supabaseClient
         .from("refs")
@@ -105,8 +122,8 @@ serve(async (req: Request): Promise<Response> => {
     // PUT /repos/:repoId/refs/:refName - Update a ref with CAS
     if (
       req.method === "PUT" &&
-      pathParts.length >= 4 &&
-      pathParts[2] === "refs"
+      actualPath.length >= 4 &&
+      actualPath[2] === "refs"
     ) {
       // Only owner can update refs
       if (repo.owner_id !== user.id) {
@@ -116,7 +133,7 @@ serve(async (req: Request): Promise<Response> => {
         });
       }
 
-      const refName = pathParts.slice(3).join("/");
+      const refName = actualPath.slice(3).join("/");
       const body = await req.json();
       const { oldHash, newHash } = body;
 
@@ -125,6 +142,16 @@ serve(async (req: Request): Promise<Response> => {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+      // Disallow the all-zero hash to avoid broken refs
+      if (/^0{40}$/.test(newHash)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid newHash: zero hash not allowed" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
 
       // Get current ref
@@ -151,6 +178,38 @@ serve(async (req: Request): Promise<Response> => {
           }
         );
       }
+
+      // Strong consistency check: ensure the new commit object exists in storage
+      const bucketName = "bit-objects";
+      const objectPath = `repos/${repoId}/objects/${newHash.slice(
+        0,
+        2
+      )}/${newHash.slice(2)}`;
+
+      // Retry up to 5 times with short backoff to avoid race with recent uploads
+      let found = false;
+      for (let attempt = 0; attempt < 5 && !found; attempt++) {
+        const { data: objData } = await supabaseAdmin.storage
+          .from(bucketName)
+          .download(objectPath);
+        if (objData) {
+          found = true;
+          break;
+        }
+        // 150ms backoff
+        await new Promise((r) => setTimeout(r, 150));
+      }
+
+      if (!found) {
+        return new Response(
+          JSON.stringify({ error: "Missing object for newHash" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      // Object confirmed by admin check above
 
       // Update or insert ref
       const { error: upsertError } = await supabaseClient.from("refs").upsert(
