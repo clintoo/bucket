@@ -233,7 +233,8 @@ const Repository = () => {
     const refsRes = await fetch(refsUrl, { headers });
     const refsJson = await refsRes.json();
     const mainRef = (refsJson.refs || []).find(
-      (r: any) => r.name === "refs/heads/main"
+      (r: any) =>
+        r.name === "refs/heads/main" || r.name === "refs%2Fheads%2Fmain"
     );
     const commitHash = mainRef?.hash;
     if (!commitHash) {
